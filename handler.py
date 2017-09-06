@@ -2,16 +2,18 @@ import os
 import sys
 import json
 import ConfigParser
+import base64
+
 """
 This is needed so that the script running on AWS will pick up the pre-compiled dependencies
 from the vendored folder
 """
 HERE = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(HERE, "vendored"))
+sys.path = (os.path.join(HERE, "vendored"))
 """
 Now that the script knows where to look, we can safely import our objects
 """
-from tf_regression import TensorFlowRegressionModel
+from tf_sdd_box import TensorFlowBoxingModel
 """
 Declare here global objects living across requests
 """
@@ -19,7 +21,7 @@ Declare here global objects living across requests
 Config = ConfigParser.ConfigParser()
 Config.read(HERE + '/settings.ini')
 # instantiate the tf_model in "prediction mode"
-tf_model = TensorFlowRegressionModel(Config, is_training=False)
+tf_model = TensorFlowBoxingModel(Config, is_training=False)
 # just print a message so we can verify in AWS the loading of dependencies was correct
 print "loaded done!"
 
@@ -38,17 +40,18 @@ def validate_input(input_val):
         return None
 
 
-def get_param_from_url(event, param_name):
+def get_image_from_request_body(event):
     """
-    Helper function to retrieve query parameters from a Lambda call. Parameters are passed through the
-    event object as a dictionary.
+    Helper function to convert the request body (B64) into an image in memory
 
     :param event: the event as input in the Lambda function
-    :param param_name: the name of the parameter in the query string
-    :return: the parameter value
+    :return: the image
     """
-    params = event['queryStringParameters']
-    return params[param_name]
+    base64_image = event.body
+    img_data = base64.b64decode(base64_image)
+    img = cv2.imdecode(np.fromstring(img_data, dtype=np.uint8), -1)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    return img
 
 
 def return_lambda_gateway_response(code, body):
@@ -73,12 +76,11 @@ def predict(event, context):
 
     """
     try:
-        param = get_param_from_url(event, 'x')
-        x_val = validate_input(param)
-        if x_val:
-            value = tf_model.predict(x_val)
+        img = get_image_from_request_body(event)
+        if img:
+            value = tf_model.predict(img)
         else:
-            raise "Input parameter has invalid type: float expected"
+            raise "Input request has invalid type: base64 body expected"
     except Exception as ex:
         error_response = {
             'error_message': "Unexpected error",

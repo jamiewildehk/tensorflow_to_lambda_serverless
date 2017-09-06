@@ -14,5 +14,5 @@ functions:
     events:
       - http:
           path: /predict
-          method: get
+          method: post
 
