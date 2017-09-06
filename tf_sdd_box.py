@@ -28,7 +28,7 @@ class TensorFlowBoxingModel:
       self.predictions, self.localisations, _, _ = self.ssd_net.net(self.image_4d, is_training=False, reuse=reuse)
 
     if not is_training:
-      self.sess = self.restore_model(config.get('model', 'LOCAL_MODEL_FOLDER') + 'model.ckpt-28781')  
+      self.sess = self.restore_model(config.get('model', 'LOCAL_MODEL_FOLDER') + config.get('model', 'LOCAL_MODEL_NAME'))  
     return
 
   def restore_model(self, model):

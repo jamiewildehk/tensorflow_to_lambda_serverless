@@ -3,13 +3,15 @@ import sys
 import json
 import ConfigParser
 import base64
+import boto3
+import re
 
 """
 This is needed so that the script running on AWS will pick up the pre-compiled dependencies
 from the vendored folder
 """
 HERE = os.path.dirname(os.path.realpath(__file__))
-sys.path = (os.path.join(HERE, "vendored"))
+sys.path.insert(0, os.path.join(HERE, "vendored"))
 """
 Now that the script knows where to look, we can safely import our objects
 """
@@ -21,9 +23,37 @@ Declare here global objects living across requests
 Config = ConfigParser.ConfigParser()
 Config.read(HERE + '/settings.ini')
 # instantiate the tf_model in "prediction mode"
+
+def extract_s3_path(s3path):
+    Result = {}
+    s3path = s3path.replace("s3://","")
+    tmppath =  s3path.split("/")
+    Result["bucket"] = tmppath[0]
+    Result["key"] = tmppath[1]
+    print Result
+    return Result
+
+def s3_download_config(s3_client,config,destination):
+    dest_path = destination + config["key"]
+    if not os.path.isfile(dest_path):
+        s3_client.download_file(config["bucket"], config["key"], dest_path)
+        print ('%s loaded!' % config["key"])
+    else:
+        print ('%s already loaded!' % config["key"])
+    return
+
+
+s3_client = boto3.client('s3')
+
+s3_download_config(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_META')),Config.get('model', 'LOCAL_MODEL_FOLDER') )
+s3_download_config(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_INDEX')),Config.get('model', 'LOCAL_MODEL_FOLDER') ) 
+s3_download_config(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_DATA')),Config.get('model', 'LOCAL_MODEL_FOLDER') )
+
 tf_model = TensorFlowBoxingModel(Config, is_training=False)
 # just print a message so we can verify in AWS the loading of dependencies was correct
+
 print "loaded done!"
+
 
 
 def validate_input(input_val):
