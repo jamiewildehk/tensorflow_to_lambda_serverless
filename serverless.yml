@@ -1,0 +1,23 @@
+frameworkVersion: ">=1.2.1"
+
+service: tensorflow-lambda-regression
+
+provider:
+  name: aws
+  runtime: python2.7
+  stage: dev
+  region: us-west-2
+
+package:
+  exclude:
+    - .git/**
+    - .serverless/**
+
+functions:
+  predict:
+    handler: handler.predict
+    events:
+      - http:
+          path: /predict
+          method: post
+
