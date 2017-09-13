@@ -1,3 +1,5 @@
+#~/bin/bash
+#cd "${0%/*}"
 rm -rf deployment-2.zip
 python -m compileall .
 zip -rq deployment-2.zip .

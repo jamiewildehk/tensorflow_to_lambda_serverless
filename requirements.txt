@@ -1,2 +1,6 @@
+<<<<<<< HEAD
 tensorflow==1.0.0
+=======
+tensorflow==0.12.1
+>>>>>>> 8bdc8fa56a8a98c32c221dcda44867aae4c43431
 cv2

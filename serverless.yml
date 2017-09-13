@@ -8,11 +8,14 @@ provider:
   stage: dev
   region: us-west-2
 
+<<<<<<< HEAD
 package:
   exclude:
     - .git/**
     - .serverless/**
 
+=======
+>>>>>>> 8bdc8fa56a8a98c32c221dcda44867aae4c43431
 functions:
   predict:
     handler: handler.predict
