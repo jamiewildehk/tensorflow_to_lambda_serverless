@@ -28,6 +28,8 @@ this_process = None
 
 print sys.path
 
+reuse=None
+
 s3_client = boto3.client('s3')
 
 
@@ -44,13 +46,21 @@ def s3_download(s3_client,config,destination,dest_filename=None):
     if dest_filename:
         dest_path = destination + dest_filename
     print config
+    if os.path.exists(dest_path):
+        #print ('%s already loaded - removing file' % dest_path)
+        os.remove(dest_path)
+    s3_client.download_file(config["bucket"], config["key"], dest_path)
+        #print ('%s loaded!' % dest_path)
+    reuse=True
+  
 
-    if not os.path.isfile(dest_path):
-        s3_client.download_file(config["bucket"], config["key"], dest_path)
-        print ('%s loaded!' % dest_path)
-    else:
-        print ('%s already loaded!' % dest_path)
-        time.sleep(1)
+    # if not os.path.isfile(dest_path):
+        
+    # else:
+    #     print ('%s already loaded!' % dest_path)
+    #     global reuse
+    #     reuse=True
+    #     time.sleep(1)
     return dest_path
 
 
@@ -173,20 +183,13 @@ def predict(event, context):
     """
     Declare here global objects living across requests
     """
-    # use Pythonic ConfigParser to handle settings
-    Config = ConfigParser.ConfigParser()
-    Config.read(HERE + '/settings.ini')
-    # instantiate the tf_model in "prediction mode"
-
-
-    
-
-    s3_download(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_META')),Config.get('model', 'LOCAL_MODEL_FOLDER') )
-    s3_download(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_INDEX')),Config.get('model', 'LOCAL_MODEL_FOLDER') ) 
-    s3_download(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_DATA')),Config.get('model', 'LOCAL_MODEL_FOLDER') )
-
-    tf_model = TensorFlowBoxingModel(Config, is_training=False)
-
+    print context
+    print("Request ID:",context.aws_request_id)
+    if 'request_id' in locals():
+        print "error - duplicated request"
+        return "error - duplicated request"
+    request_id = context.aws_request_id
+    tf_model = None
     this_process = {
         "source" : "",
         "key" : "",
@@ -194,6 +197,19 @@ def predict(event, context):
         "event": event,
         "jsonkey" : ""
     }
+
+    # use Pythonic ConfigParser to handle settings
+    Config = ConfigParser.ConfigParser()
+    Config.read(HERE + '/settings.ini')
+    # instantiate the tf_model in "prediction mode"
+   
+    s3_download(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_META')),Config.get('model', 'LOCAL_MODEL_FOLDER') )
+    s3_download(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_INDEX')),Config.get('model', 'LOCAL_MODEL_FOLDER') ) 
+    s3_download(s3_client,extract_s3_path(Config.get('remote', 'REMOTE_MODEL_DATA')),Config.get('model', 'LOCAL_MODEL_FOLDER') )
+
+    print reuse
+    
+    tf_model = TensorFlowBoxingModel(Config, None, False)
 
     try:
         img = None
@@ -228,7 +244,8 @@ def predict(event, context):
     except Exception as ex:
         error_response = {
             'error_message': "Unexpected error",
-            'stack_trace': str(ex)
+            'stack_trace': str(ex),
+            'context': str(context)
         }
         print ex
         return return_lambda_gateway_response(503, error_response)

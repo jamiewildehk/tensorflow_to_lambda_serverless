@@ -8,8 +8,9 @@ from preprocessing import ssd_vgg_preprocessing
 
 class TensorFlowBoxingModel:
   
-  def __init__(self, config, is_training=True):
+  def __init__(self, config, reuse, is_training=True ):
     # if it is not training, restore the model and store the session in the class
+    tf.reset_default_graph()
     slim = tf.contrib.slim
 
     net_shape = (512, 512)
@@ -20,12 +21,14 @@ class TensorFlowBoxingModel:
         self.img_input, None, None, net_shape, data_format, resize=ssd_vgg_preprocessing.Resize.WARP_RESIZE)
     self.image_4d = tf.expand_dims(self.image_pre, 0)
     # Define the SSD model.
-    reuse = True if hasattr(self, 'ssd_net') else None
-    self.ssd_net = ssd_vgg_512.SSDNet()
-    self.ssd_anchors = self.ssd_net.anchors(net_shape)
+    #reuse = True if 'ssd_net' in locals() else None
+    reuse=None
+    ssd_net = None
+    ssd_net = ssd_vgg_512.SSDNet()
+    self.ssd_anchors = ssd_net.anchors(net_shape)
 
-    with slim.arg_scope(self.ssd_net.arg_scope(data_format=data_format)):
-      self.predictions, self.localisations, _, _ = self.ssd_net.net(self.image_4d, is_training=False, reuse=reuse)
+    with slim.arg_scope(ssd_net.arg_scope(data_format=data_format)):
+      self.predictions, self.localisations, _, _ = ssd_net.net(self.image_4d, is_training=False, reuse=reuse)
 
     if not is_training:
       self.sess = self.restore_model(config.get('model', 'LOCAL_MODEL_FOLDER') + config.get('model', 'LOCAL_MODEL_NAME'))  
